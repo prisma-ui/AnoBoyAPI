@@ -90,3 +90,39 @@ export async function getSeasons(): Promise<ApiResponse<FilterItem[]> & { cached
 
   return { success: true, source: 'anoboy', cached: false, data: seasons };
 }
+
+export async function getStatuses(): Promise<ApiResponse<FilterItem[]> & { cached: boolean }> {
+  const cacheKey = 'filters:statuses';
+  const cached = await getCache<FilterItem[]>(cacheKey);
+  if (cached) return { success: true, source: 'anoboy', cached: true, data: cached };
+  const data = await scrapeFilters('status');
+  await setCache(cacheKey, data, config.cache.genres);
+  return { success: true, source: 'anoboy', cached: false, data };
+}
+
+export async function getTypes(): Promise<ApiResponse<FilterItem[]> & { cached: boolean }> {
+  const cacheKey = 'filters:types';
+  const cached = await getCache<FilterItem[]>(cacheKey);
+  if (cached) return { success: true, source: 'anoboy', cached: true, data: cached };
+  const data = await scrapeFilters('type');
+  await setCache(cacheKey, data, config.cache.genres);
+  return { success: true, source: 'anoboy', cached: false, data };
+}
+
+export async function getSubs(): Promise<ApiResponse<FilterItem[]> & { cached: boolean }> {
+  const cacheKey = 'filters:subs';
+  const cached = await getCache<FilterItem[]>(cacheKey);
+  if (cached) return { success: true, source: 'anoboy', cached: true, data: cached };
+  const data = await scrapeFilters('sub');
+  await setCache(cacheKey, data, config.cache.genres);
+  return { success: true, source: 'anoboy', cached: false, data };
+}
+
+export async function getSortOptions(): Promise<ApiResponse<FilterItem[]> & { cached: boolean }> {
+  const cacheKey = 'filters:sort';
+  const cached = await getCache<FilterItem[]>(cacheKey);
+  if (cached) return { success: true, source: 'anoboy', cached: true, data: cached };
+  const data = await scrapeFilters('order');
+  await setCache(cacheKey, data, config.cache.genres);
+  return { success: true, source: 'anoboy', cached: false, data };
+}
