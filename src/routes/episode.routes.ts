@@ -9,6 +9,7 @@ const router = Router();
  *   get:
  *     tags: [Episode]
  *     summary: Get episode detail by ID
+ *     operationId: getEpisodeById
  *     parameters:
  *       - in: path
  *         name: id
@@ -38,7 +39,8 @@ router.get('/:id', getEpisode);
  * /api/episode:
  *   get:
  *     tags: [Episode]
- *     summary: Get episode detail by URL query parameter
+ *     summary: Get episode detail by URL
+ *     operationId: getEpisodeByUrl
  *     parameters:
  *       - in: query
  *         name: url
@@ -48,6 +50,10 @@ router.get('/:id', getEpisode);
  *     responses:
  *       200:
  *         description: Episode detail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/EpisodeDetailResponse'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  */

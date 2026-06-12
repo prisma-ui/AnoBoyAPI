@@ -14,7 +14,11 @@ import { logger } from './utils/logger';
 const app = express();
 
 // Security
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Required for Swagger UI to load inline scripts
+  })
+);
 app.use(
   cors({
     origin: config.cors.allowedOrigins === '*' ? '*' : config.cors.allowedOrigins.split(','),
@@ -37,16 +41,37 @@ if (config.nodeEnv !== 'test') {
   );
 }
 
-// Top-level health (no rate limit, no /api prefix)
+// Health check — no rate limit, no /api prefix
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 
-// Swagger UI
-app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customSiteTitle: 'Anoboy API Docs',
-  customCss: '.swagger-ui .topbar { display: none }',
-}));
+// Serve raw OpenAPI spec as JSON
+app.get('/swagger.json', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// Swagger UI — point to /swagger.json so spec is always fetched fresh
+app.use(
+  '/swagger',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'Anoboy API',
+    customCss: `
+      .swagger-ui .topbar { display: none }
+      .swagger-ui .info { margin: 20px 0 }
+    `,
+    swaggerOptions: {
+      url: '/swagger.json',
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      docExpansion: 'list',
+      filter: true,
+      showExtensions: true,
+    },
+  })
+);
 
 // API routes (rate limited)
 app.use('/api', rateLimiter, apiRoutes);

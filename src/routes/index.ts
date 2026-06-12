@@ -11,6 +11,7 @@ const router = Router();
  *   get:
  *     tags: [Search]
  *     summary: Search anime by keyword
+ *     operationId: searchAnime
  *     parameters:
  *       - in: query
  *         name: q
@@ -38,6 +39,7 @@ router.get('/search', searchAnime);
  *   get:
  *     tags: [Filters]
  *     summary: Get all genres
+ *     operationId: listGenres
  *     responses:
  *       200:
  *         description: Genre list
@@ -54,6 +56,7 @@ router.get('/genres', listGenres);
  *   get:
  *     tags: [Filters]
  *     summary: Get all studios
+ *     operationId: listStudios
  *     responses:
  *       200:
  *         description: Studio list
@@ -70,6 +73,7 @@ router.get('/studios', listStudios);
  *   get:
  *     tags: [Filters]
  *     summary: Get all seasons
+ *     operationId: listSeasons
  *     responses:
  *       200:
  *         description: Season list
@@ -86,6 +90,7 @@ router.get('/seasons', listSeasons);
  *   get:
  *     tags: [Health]
  *     summary: Health check
+ *     operationId: healthCheck
  *     responses:
  *       200:
  *         description: OK
@@ -102,7 +107,6 @@ router.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 
-// Mounted last — /:animeId wildcard stays contained within /anime prefix
 router.use('/anime', animeRoutes);
 router.use('/episode', episodeRoutes);
 
