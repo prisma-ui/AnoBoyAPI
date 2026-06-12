@@ -179,10 +179,12 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
   const html = await fetchPage(url);
   const $ = cheerio.load(html);
 
-  const infoBox = $('.single-info, .bixbox.animefull, .infoanime').first();
+  // animefull = outer wrapper; single-info = info sidebar on episode page
+  const animefullBox = $('.bixbox.animefull, .infoanime').first();
+  const infoBox = animefullBox.length ? animefullBox : $('.single-info').first();
 
   const title =
-    infoBox.find('h1').first().text().trim() ||
+    infoBox.find('h1.entry-title, h1[itemprop="name"]').first().text().trim() ||
     $('h1.entry-title').text().trim() ||
     $('h1').first().text().trim();
 
@@ -192,6 +194,7 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
     '';
 
   const thumbnail =
+    infoBox.find('.thumbook .thumb img, .thumb img').first().attr('src') ||
     infoBox.find('img').first().attr('src') ||
     infoBox.find('img').first().attr('data-src') ||
     $('meta[property="og:image"]').attr('content') ||
@@ -224,9 +227,14 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
   const director = meta['director'] || meta['directed by'] || '';
 
   const casts: string[] = [];
-  infoBox.find('.cast a, [class*="cast"] a').each((_, el) => {
-    const name = $(el).text().trim();
-    if (name) casts.push(name);
+  // Casts are inside .spe span that contains "Casts:" label
+  infoBox.find('.spe span').each((_, el) => {
+    if ($(el).find('b').text().toLowerCase().includes('cast')) {
+      $(el).find('a').each((__, a) => {
+        const name = $(a).text().trim();
+        if (name) casts.push(name);
+      });
+    }
   });
 
   const genres: string[] = [];
@@ -237,13 +245,15 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
   });
 
   const synopsis =
-    infoBox.find('.entry-content p').text().trim() ||
-    infoBox.find('[class*="synopsis"] p, [class*="desc"] p').first().text().trim() ||
-    infoBox.find('p').first().text().trim() ||
+    $('.bixbox.synp .entry-content p').text().trim() ||
+    $('.bixbox.synp [itemprop="description"] p').text().trim() ||
+    infoBox.find('.desc p, .mindesc p').first().text().trim() ||
+    $('[itemprop="description"] p').first().text().trim() ||
     '';
 
   const rating =
-    infoBox.find('.rating strong, .rating-box, [class*="rating"] strong').first().text().trim() ||
+    $('.single-info .rating strong').first().text().trim() ||
+    infoBox.find('.rating strong').first().text().trim() ||
     $('[itemprop="ratingValue"]').text().trim() ||
     '';
 
