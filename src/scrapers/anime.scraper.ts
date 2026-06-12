@@ -2,7 +2,7 @@ import * as cheerio from 'cheerio';
 import type { Element } from 'domhandler';
 import { fetchPage } from '../utils/httpClient';
 import { extractSlugFromUrl, normalizeFilterSlug } from '../utils/slugify';
-import { AnimeCard, AnimeDetail, Episode, AnimeListQuery } from '../types';
+import { AnimeCard, AnimeDetail, Episode, CharacterVoice, AnimeListQuery } from '../types';
 import { config } from '../config/env';
 
 interface PaginationInfo {
@@ -288,6 +288,33 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
     }
   });
 
+  // Characters & Voice Actors from .bixbox.charvoice .cvlist
+  const characters: CharacterVoice[] = [];
+  $('.bixbox.charvoice .cvlist .cvitem').each((_, el) => {
+    const item = $(el);
+
+    const charEl = item.find('.cvchar');
+    const character = charEl.find('.charname').first().text().trim();
+    const characterRole = charEl.find('.charrole').first().text().trim();
+    const characterImage =
+      charEl.find('img').attr('src') ||
+      charEl.find('img').attr('data-src') ||
+      '';
+
+    const actorEl = item.find('.cvactor');
+    const actor = actorEl.find('.charname').first().text().trim();
+    const actorRole = actorEl.find('.charrole').first().text().trim();
+    const actorImage =
+      actorEl.find('img').attr('src') ||
+      actorEl.find('img').attr('data-src') ||
+      '';
+    const actorUrl = actorEl.find('a').first().attr('href') || '';
+
+    if (character) {
+      characters.push({ character, characterRole, characterImage, actor, actorRole, actorImage, actorUrl });
+    }
+  });
+
   return {
     animeId,
     title,
@@ -303,6 +330,7 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
     genres,
     synopsis,
     rating,
+    characters,
     episodes,
   };
 }
