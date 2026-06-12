@@ -17,6 +17,16 @@ export interface Episode {
   releaseDate: string;
 }
 
+export interface CharacterVoice {
+  character: string;
+  characterRole: string;
+  characterImage: string;
+  actor: string;
+  actorRole: string;
+  actorImage: string;
+  actorUrl: string;
+}
+
 export interface AnimeDetail {
   animeId: string;
   title: string;
@@ -32,6 +42,7 @@ export interface AnimeDetail {
   genres: string[];
   synopsis: string;
   rating: string;
+  characters: CharacterVoice[];
   episodes: Episode[];
 }
 
