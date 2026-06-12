@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getAnimeList, getAnimeDetail, getGenres, getStudios, getSeasons } from '../services/anime.service';
+import { getAnimeList, getAnimeDetail, getGenres, getStudios, getSeasons, getStatuses, getTypes, getSubs, getSortOptions } from '../services/anime.service';
 import { sendPaginated, sendSuccess, sendError } from '../utils/response';
 import { AnimeListQuery } from '../types';
 
@@ -14,6 +14,7 @@ export async function listAnime(req: Request, res: Response, next: NextFunction)
       studio: req.query.studio as string | undefined,
       season: req.query.season as string | undefined,
       sort: req.query.sort as string | undefined,
+      sub: req.query.sub as string | undefined,
     };
 
     const result = await getAnimeList(query);
@@ -84,4 +85,20 @@ export async function listSeasons(req: Request, res: Response, next: NextFunctio
   } catch (err) {
     next(err);
   }
+}
+
+export async function listStatuses(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try { const r = await getStatuses(); sendSuccess(res, r.data, r.cached); } catch (err) { next(err); }
+}
+
+export async function listTypes(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try { const r = await getTypes(); sendSuccess(res, r.data, r.cached); } catch (err) { next(err); }
+}
+
+export async function listSubs(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try { const r = await getSubs(); sendSuccess(res, r.data, r.cached); } catch (err) { next(err); }
+}
+
+export async function listSortOptions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try { const r = await getSortOptions(); sendSuccess(res, r.data, r.cached); } catch (err) { next(err); }
 }
