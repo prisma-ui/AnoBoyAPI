@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listAnime, getAnime, searchAnime, listGenres, listStudios, listSeasons } from '../controllers/anime.controller';
+import { listAnime, getAnime } from '../controllers/anime.controller';
 
 const router = Router();
 
@@ -16,7 +16,6 @@ const router = Router();
  *       - in: query
  *         name: search
  *         schema: { type: string }
- *         description: Search keyword
  *       - in: query
  *         name: genre
  *         schema: { type: string }
@@ -30,11 +29,9 @@ const router = Router();
  *       - in: query
  *         name: studio
  *         schema: { type: string }
- *         example: 8bit
  *       - in: query
  *         name: season
  *         schema: { type: string }
- *         example: spring-2026
  *       - in: query
  *         name: sort
  *         schema: { type: string, enum: [latest, oldest, title-asc, title-desc] }
@@ -74,7 +71,7 @@ router.get('/', listAnime);
  *       500:
  *         $ref: '#/components/responses/Error'
  */
-router.get('/:animeId', getAnime);
+router.get('/:animeId([a-z0-9][a-z0-9-]*[a-z0-9])', getAnime);
 
 export { router as animeRoutes };
-export { searchAnime, listGenres, listStudios, listSeasons };
+

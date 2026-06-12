@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -37,11 +37,8 @@ if (config.nodeEnv !== 'test') {
   );
 }
 
-// Rate limiting
-app.use('/api', rateLimiter);
-
-// Health check (no rate limit)
-app.get('/health', (_req, res) => {
+// Top-level health (no rate limit, no /api prefix)
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
 
@@ -51,8 +48,8 @@ app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
 }));
 
-// API routes
-app.use('/api', apiRoutes);
+// API routes (rate limited)
+app.use('/api', rateLimiter, apiRoutes);
 
 // 404 & error handlers
 app.use(notFoundHandler);

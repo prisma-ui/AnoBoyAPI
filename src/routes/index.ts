@@ -1,11 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { animeRoutes, searchAnime, listGenres, listStudios, listSeasons } from './anime.routes';
+import { animeRoutes } from './anime.routes';
 import { episodeRoutes } from './episode.routes';
+import { searchAnime, listGenres, listStudios, listSeasons } from '../controllers/anime.controller';
 
 const router = Router();
-
-router.use('/anime', animeRoutes);
-router.use('/episode', episodeRoutes);
 
 /**
  * @openapi
@@ -103,5 +101,9 @@ router.get('/seasons', listSeasons);
 router.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
+
+// Mounted last — /:animeId wildcard stays contained within /anime prefix
+router.use('/anime', animeRoutes);
+router.use('/episode', episodeRoutes);
 
 export { router as apiRoutes };
