@@ -22,30 +22,32 @@ interface AnimeListResult {
 function buildAnimeListUrl(query: AnimeListQuery): string {
   const page = query.page ?? 1;
   const hasFilters =
-    query.search || query.genre || query.status || query.type || query.studio || query.season || query.sort;
+    query.search || query.genre || query.status || query.type ||
+    query.studio || query.season || query.sort || query.sub;
 
   const params = new URLSearchParams();
 
   if (query.search) params.set('s', query.search);
-  if (query.genre) params.set('genre', query.genre);
+  if (query.genre) params.set('genre[]', query.genre);
   if (query.status) params.set('status', query.status);
   if (query.type) params.set('type', query.type.toLowerCase());
-  if (query.studio) params.set('studio', query.studio);
-  if (query.season) params.set('season', query.season);
+  if (query.studio) params.set('studio[]', query.studio);
+  if (query.season) params.set('season[]', query.season);
   if (query.sort) params.set('order', query.sort);
+  if (query.sub) params.set('sub', query.sub);
 
   if (hasFilters) {
+    // Filtered anime list uses /anime?param=value&page=N
     if (page > 1) params.set('page', String(page));
     const qs = params.toString();
-    return `${config.baseUrl}/${qs ? '?' + qs : ''}`;
+    return `${config.baseUrl}/anime${qs ? '?' + qs : ''}`;
   }
 
-  // Plain listing uses /page/ path
-  const qs = params.toString();
+  // Plain listing uses /anime/page/N/
   if (page > 1) {
-    return `${config.baseUrl}/anime/page/${page}/${qs ? '?' + qs : ''}`;
+    return `${config.baseUrl}/anime/page/${page}/`;
   }
-  return `${config.baseUrl}/anime/${qs ? '?' + qs : ''}`;
+  return `${config.baseUrl}/anime/`;
 }
 
 function parsePagination($: cheerio.CheerioAPI, currentPage: number): PaginationInfo {
@@ -54,25 +56,23 @@ function parsePagination($: cheerio.CheerioAPI, currentPage: number): Pagination
   let nextPage: number | null = null;
   let prevPage: number | null = currentPage > 1 ? currentPage - 1 : null;
 
-  // Try multiple pagination selectors
-  const nextEl =
-    $('a.next.page-numbers').first() ||
-    $('a[class*="next"]').first() ||
-    $('nav.pagination a[rel="next"]').first();
+  // Anoboy uses .hpage a.r (next) and .hpage a.l (prev)
+  const nextEl = $('.hpage a.r, a.next.page-numbers, a[rel="next"]').first();
+  const prevEl = $('.hpage a.l, a.prev.page-numbers, a[rel="prev"]').first();
 
-  const prevEl =
-    $('a.prev.page-numbers').first() ||
-    $('a[class*="prev"]').first() ||
-    $('nav.pagination a[rel="prev"]').first();
-
-  if ($('a.next.page-numbers').length > 0 || $('a[rel="next"]').length > 0) {
+  if (nextEl.length > 0) {
     hasNextPage = true;
-    nextPage = currentPage + 1;
+    // Extract page number from href if available, fallback to currentPage+1
+    const nextHref = nextEl.attr('href') || '';
+    const nextMatch = nextHref.match(/[?&]page=(\d+)/) || nextHref.match(/\/page\/(\d+)/);
+    nextPage = nextMatch ? Number(nextMatch[1]) : currentPage + 1;
   }
 
-  if ($('a.prev.page-numbers').length > 0 || $('a[rel="prev"]').length > 0) {
+  if (prevEl.length > 0) {
     hasPrevPage = true;
-    prevPage = currentPage - 1;
+    const prevHref = prevEl.attr('href') || '';
+    const prevMatch = prevHref.match(/[?&]page=(\d+)/) || prevHref.match(/\/page\/(\d+)/);
+    prevPage = prevMatch ? Number(prevMatch[1]) : currentPage - 1;
   }
 
   // Count results
@@ -307,52 +307,50 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
   };
 }
 
-export async function scrapeFilters(filterType: 'genre' | 'studio' | 'season'): Promise<Array<{ name: string; slug: string; url: string }>> {
+// Filter type can be checkbox-based (genre, studio, season) or radio-based (status, type, sub)
+const CHECKBOX_FILTER_MAP: Record<string, string> = {
+  genre: 'genre[]',
+  studio: 'studio[]',
+  season: 'season[]',
+};
+
+const RADIO_FILTER_MAP: Record<string, string> = {
+  status: 'status',
+  type: 'type',
+  sub: 'sub',
+  order: 'order',
+};
+
+export async function scrapeFilters(
+  filterType: 'genre' | 'studio' | 'season' | 'status' | 'type' | 'sub' | 'order',
+): Promise<Array<{ name: string; slug: string; url: string }>> {
   const html = await fetchPage(`${config.baseUrl}/anime/`);
   const $ = cheerio.load(html);
 
   const results: Array<{ name: string; slug: string; url: string }> = [];
   const seen = new Set<string>();
 
-  // Look in filter/sidebar widgets
-  const selectors: Record<string, string[]> = {
-    genre: [
-      '[class*="genre"] a',
-      '.genre-list a',
-      'select[name="genre"] option',
-      '.filter a[href*="genre"]',
-      'a[href*="genre="]',
-    ],
-    studio: [
-      '[class*="studio"] a',
-      '.studio-list a',
-      'select[name="studio"] option',
-      '.filter a[href*="studio"]',
-      'a[href*="studio="]',
-    ],
-    season: [
-      '[class*="season"] a',
-      '.season-list a',
-      'select[name="season"] option',
-      '.filter a[href*="season"]',
-      'a[href*="season="]',
-    ],
-  };
+  const isCheckbox = filterType in CHECKBOX_FILTER_MAP;
+  const inputName = isCheckbox
+    ? CHECKBOX_FILTER_MAP[filterType]
+    : RADIO_FILTER_MAP[filterType] ?? filterType;
 
-  for (const selector of selectors[filterType]) {
-    $(selector).each((_, el) => {
-      const name = $(el).text().trim();
-      if (!name || name === 'All' || name === '-') return;
-      const href = $(el).attr('href') || $(el).attr('value') || '';
-      const slug = normalizeFilterSlug(name);
-      const key = slug;
-      if (!seen.has(key) && name) {
-        seen.add(key);
-        results.push({ name, slug, url: href });
-      }
-    });
-    if (results.length > 0) break;
-  }
+  const selector = `input[name="${inputName}"]`;
+
+  $(selector).each((_, el) => {
+    const value = $(el).attr('value') || '';
+    // Skip empty/all values
+    if (!value) return;
+    const label = $(`label[for="${$(el).attr('id')}"], label[for="${$(el).attr('name')}-${value}"]`).text().trim()
+      || value;
+    if (!label || label === 'All' || label === '-') return;
+
+    const slug = value; // Use the HTML value directly as slug (already normalized by site)
+    if (!seen.has(slug)) {
+      seen.add(slug);
+      results.push({ name: label, slug, url: '' });
+    }
+  });
 
   return results;
 }
