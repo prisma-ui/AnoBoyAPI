@@ -127,6 +127,7 @@ export interface AnimeListQuery {
   studio?: string;
   season?: string;
   sort?: string;
+  sub?: string;
 }
 
 export interface FilterItem {
