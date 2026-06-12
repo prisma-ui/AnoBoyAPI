@@ -21,18 +21,23 @@ export async function scrapeEpisodeByUrl(episodeUrl: string): Promise<EpisodeDet
 }
 
 function parseEpisodePage($: cheerio.CheerioAPI, _html: string, fallbackId: string): EpisodeDetail {
-  const articleId = $('article[id^="post-"]').attr('id') || '';
+  const articleEl = $('article[id^="post-"]').first();
+  const articleId = articleEl.attr('id') || '';
   const episodeId = extractEpisodeIdFromArticle(articleId) || fallbackId;
 
-  // Title from h1.entry-title (not <title> tag)
+  // Scope all selectors to article to avoid sidebar contamination
+  const art = articleEl.length ? articleEl : $.root();
+
+  // Title from h1.entry-title scoped to article
   const title =
-    $('h1.entry-title').text().trim() ||
-    $('h1[itemprop="name"]').text().trim() ||
-    $('h1').first().text().trim() ||
+    art.find('h1.entry-title').first().text().trim() ||
+    art.find('h1[itemprop="name"]').first().text().trim() ||
+    art.find('h1').first().text().trim() ||
     '';
 
-  // Episode number from itemprop or title regex
-  const epNumMeta = $('[itemprop="episodeNumber"]').attr('content');
+  // Episode number from itemprop (meta tag inside article)
+  const epNumMeta = art.find('[itemprop="episodeNumber"]').attr('content')
+    || $('meta[itemprop="episodeNumber"]').attr('content');
   const episodeNumber: number | string = epNumMeta
     ? Number(epNumMeta)
     : (() => {
@@ -40,37 +45,37 @@ function parseEpisodePage($: cheerio.CheerioAPI, _html: string, fallbackId: stri
         return m ? Number(m[1]) : '';
       })();
 
-  // Anime title from episode list heading or breadcrumb link
+  // Anime title: .year span contains "series <a>AnimeTitle</a>"
   const animeTitle =
-    $('.year a[href*="/anime/"]').text().trim() ||
-    $('.headlist .det h2 a').text().trim() ||
-    $('.single-info h2[itemprop="partOfSeries"] a').text().trim() ||
-    $('.infox h2[itemprop="partOfSeries"]').text().trim() ||
+    art.find('.year a[href*="/anime/"]').first().text().trim() ||
+    art.find('.headlist .det h2 a').first().text().trim() ||
+    art.find('.single-info .infox h2').first().text().trim() ||
     '';
 
-  // Thumbnail: prefer single-info section image (anime poster), fallback og:image
+  // Thumbnail: single-info poster, then megavid thumb, then og:image
   const thumbnail =
-    $('.single-info .thumb img').attr('src') ||
-    $('.megavid .tb img').attr('src') ||
+    art.find('.single-info .thumb img').first().attr('src') ||
+    art.find('.megavid .tb img').first().attr('src') ||
     $('meta[property="og:image"]').attr('content') ||
     '';
 
-  // Posted by from meta itemprop or .year .fn
+  // Posted by: meta itemprop (at end of article), then .year .fn
   const postedBy =
+    art.find('meta[itemprop="author"]').attr('content') ||
     $('meta[itemprop="author"]').attr('content') ||
-    $('.year .fn').text().trim() ||
-    $('.year .fn a').text().trim() ||
+    art.find('.year .fn a').first().text().trim() ||
+    art.find('.year .fn').first().text().trim() ||
     '';
 
-  // Posted date from meta itemprop
+  // Posted date: meta itemprop at end of article
   const postedDate =
+    art.find('meta[itemprop="datePublished"]').attr('content') ||
     $('meta[itemprop="datePublished"]').attr('content') ||
-    $('time[itemprop="datePublished"]').attr('datetime') ||
-    $('time[datetime]').first().attr('datetime') ||
+    art.find('time[itemprop="datePublished"]').attr('datetime') ||
     '';
 
-  // Type from .epx (e.g. " TV Sub" — first text node before .lg span)
-  const epxEl = $('span.epx').first();
+  // Type from .epx in .megavid (text node only, excludes .lg child)
+  const epxEl = art.find('.megavid span.epx').first();
   const typeMeta =
     epxEl
       .clone()
@@ -80,15 +85,15 @@ function parseEpisodePage($: cheerio.CheerioAPI, _html: string, fallbackId: stri
       .text()
       .trim() || 'TV';
 
-  // Subtitle from .lg inside .epx
-  const subtitleMeta = epxEl.find('.lg').text().trim() || 'Sub';
+  // Subtitle from .lg inside megavid .epx
+  const subtitleMeta = art.find('.megavid span.epx .lg').first().text().trim() || 'Sub';
 
-  const streaming = parseStreaming($);
-  const mirrors = parseMirrors($);
-  const downloads = parseDownloads($);
-  const { previousEpisode, nextEpisode } = parseNavigation($);
-  const relatedEpisodes = parseRelatedEpisodes($);
-  const recommended = parseRecommended($);
+  const streaming = parseStreaming($, art);
+  const mirrors = parseMirrors($, art);
+  const downloads = parseDownloads($, art);
+  const { previousEpisode, nextEpisode } = parseNavigation($, art);
+  const relatedEpisodes = parseRelatedEpisodes($, art);
+  const recommended = parseRecommended($, art);
 
   return {
     episodeId,
@@ -110,25 +115,26 @@ function parseEpisodePage($: cheerio.CheerioAPI, _html: string, fallbackId: stri
   };
 }
 
-function parseStreaming($: cheerio.CheerioAPI): StreamingSource {
-  // Primary: #pembed iframe (main player)
+function parseStreaming($: cheerio.CheerioAPI, art: cheerio.Cheerio<any>): StreamingSource {
   const iframe =
-    $('#pembed iframe').attr('src') ||
-    $('#pembed iframe').attr('data-src') ||
-    $('#embed_holder iframe').attr('src') ||
-    $('.player-embed iframe').attr('src') ||
-    $('iframe[src*="blogger.com"], iframe[src*="drive.google"], iframe[src*="player"]').first().attr('src') ||
+    art.find('#pembed iframe').first().attr('src') ||
+    art.find('#pembed iframe').first().attr('data-src') ||
+    art.find('#embed_holder iframe').first().attr('src') ||
+    art.find('.player-embed iframe').first().attr('src') ||
+    art.find('iframe[src*="blogger.com"]').first().attr('src') ||
+    art.find('iframe[src*="drive.google"]').first().attr('src') ||
+    art.find('iframe').first().attr('src') ||
     '';
 
-  const embed = ($('#pembed').html() || $('.player-embed').html() || '').trim();
+  const embed = (art.find('#pembed').html() || art.find('.player-embed').html() || '').trim();
 
   return { iframe, embed };
 }
 
-function parseMirrors($: cheerio.CheerioAPI): Mirror[] {
+function parseMirrors($: cheerio.CheerioAPI, art: cheerio.Cheerio<any>): Mirror[] {
   const mirrors: Mirror[] = [];
 
-  $('select.mirror option, select[name="mirror"] option').each((_, el) => {
+  art.find('select.mirror option, select[name="mirror"] option').each((_, el) => {
     const name = $(el).text().trim();
     const encoded = $(el).attr('value') || '';
     // Skip placeholder option
@@ -146,11 +152,11 @@ function parseMirrors($: cheerio.CheerioAPI): Mirror[] {
   return mirrors;
 }
 
-function parseDownloads($: cheerio.CheerioAPI): DownloadLink[] {
+function parseDownloads($: cheerio.CheerioAPI, art: cheerio.Cheerio<any>): DownloadLink[] {
   const downloads: DownloadLink[] = [];
 
   // Each .soraddlx block contains a quality group
-  $('.soraddlx').each((_, section) => {
+  art.find('.soraddlx').each((_, section) => {
     // Quality label from h3 inside .sorattlx, or from strong/b in .soraurlx
     const qualityHeader = $(section).find('.sorattlx h3').text().trim();
     const qualityInline = $(section).find('.soraurlx strong, .soraurlx b').first().text().trim();
@@ -167,7 +173,7 @@ function parseDownloads($: cheerio.CheerioAPI): DownloadLink[] {
 
   // Fallback: icon download link in player nav
   if (downloads.length === 0) {
-    $('.iconx a[href][aria-label="Download"]').each((_, link) => {
+    art.find('.iconx a[href][aria-label="Download"]').each((_, link) => {
       const url = $(link).attr('href') || '';
       if (url) downloads.push({ quality: '', provider: 'Download', url });
     });
@@ -176,12 +182,12 @@ function parseDownloads($: cheerio.CheerioAPI): DownloadLink[] {
   return downloads;
 }
 
-function parseNavigation($: cheerio.CheerioAPI): { previousEpisode: EpisodeNav | null; nextEpisode: EpisodeNav | null } {
+function parseNavigation($: cheerio.CheerioAPI, art: cheerio.Cheerio<any>): { previousEpisode: EpisodeNav | null; nextEpisode: EpisodeNav | null } {
   let previousEpisode: EpisodeNav | null = null;
   let nextEpisode: EpisodeNav | null = null;
 
   // .naveps.bignav contains .nvs divs with prev/next links
-  const navBox = $('.naveps.bignav, .naveps, [class*="navep"]').first();
+  const navBox = art.find('.naveps.bignav, .naveps').first();
 
   const buildNav = (el: cheerio.Cheerio<Element>): EpisodeNav | null => {
     const url = el.attr('href') || '';
@@ -219,11 +225,11 @@ function parseNavigation($: cheerio.CheerioAPI): { previousEpisode: EpisodeNav |
   return { previousEpisode, nextEpisode };
 }
 
-function parseRelatedEpisodes($: cheerio.CheerioAPI): RelatedEpisode[] {
+function parseRelatedEpisodes($: cheerio.CheerioAPI, art: cheerio.Cheerio<any>): RelatedEpisode[] {
   const related: RelatedEpisode[] = [];
 
-  // Find bixbox section containing "Related Episodes" heading
-  const section = $('.bixbox').filter((_, el) => {
+  // Find bixbox section containing "Related Episodes" heading — scoped to article
+  const section = art.find('.bixbox').filter((_, el) => {
     return $(el).find('h3').text().includes('Related Episodes');
   }).first();
 
@@ -245,11 +251,11 @@ function parseRelatedEpisodes($: cheerio.CheerioAPI): RelatedEpisode[] {
   return related;
 }
 
-function parseRecommended($: cheerio.CheerioAPI): RecommendedSeries[] {
+function parseRecommended($: cheerio.CheerioAPI, art: cheerio.Cheerio<any>): RecommendedSeries[] {
   const recommended: RecommendedSeries[] = [];
 
-  // Find bixbox section containing "Recommended" heading
-  const section = $('.bixbox').filter((_, el) => {
+  // Find bixbox section containing "Recommended" heading — scoped to article
+  const section = art.find('.bixbox').filter((_, el) => {
     return $(el).find('h3').text().includes('Recommended');
   }).first();
 
