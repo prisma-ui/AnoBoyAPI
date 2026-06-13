@@ -26,7 +26,10 @@ function parseEpisodePage($: cheerio.CheerioAPI, _html: string, fallbackId: stri
   const episodeId = extractEpisodeIdFromArticle(articleId) || fallbackId;
 
   // Scope all selectors to article to avoid sidebar contamination
-  const art = articleEl.length ? articleEl : $.root();
+  // $.root() returns Cheerio<Document> — use $('body') fallback to stay as Cheerio<Element>
+  const art: cheerio.Cheerio<Element> = articleEl.length
+    ? articleEl
+    : $('body').first();
 
   // Title from h1.entry-title scoped to article
   const title =
