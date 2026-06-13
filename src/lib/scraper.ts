@@ -19,7 +19,7 @@ export interface AnimeCard {
 }
 
 function slugFromUrl(url: string): string {
-  return url.replace(BASE_URL, "").replace(/^\/|\/$/g, "");
+  return url.replace(BASE_URL ?? "", "").replace(/^\/|\/$/g, "");
 }
 
 function parseCard($: cheerio.CheerioAPI, el: any): AnimeCard {
