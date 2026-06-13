@@ -226,6 +226,17 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
   const type = meta['type'] || infoBox.find('[class*="typez"]').text().trim() || '';
   const director = meta['director'] || meta['directed by'] || '';
 
+  // Producers: .spe span containing "Producers:" label
+  const producers: string[] = [];
+  infoBox.find('.spe span').each((_, el) => {
+    if ($(el).find('b').text().toLowerCase().includes('producer')) {
+      $(el).find('a').each((__, a) => {
+        const name = $(a).text().trim();
+        if (name) producers.push(name);
+      });
+    }
+  });
+
   const casts: string[] = [];
   // Casts are inside .spe span that contains "Casts:" label
   infoBox.find('.spe span').each((_, el) => {
@@ -236,6 +247,23 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
       });
     }
   });
+
+  // Posted by: .author.vcard .fn
+  const postedBy =
+    infoBox.find('.author.vcard .fn').text().trim() ||
+    infoBox.find('.spe span').filter((_, el) => $(el).find('b').text().toLowerCase().includes('posted by')).find('.fn').text().trim() ||
+    '';
+
+  // Released on / Updated on: time elements with itemprop
+  const releasedOn =
+    infoBox.find('time[itemprop="datePublished"]').attr('datetime') ||
+    infoBox.find('time[itemprop="datePublished"]').text().trim() ||
+    '';
+
+  const updatedOn =
+    infoBox.find('time[itemprop="dateModified"]').attr('datetime') ||
+    infoBox.find('time[itemprop="dateModified"]').text().trim() ||
+    '';
 
   const genres: string[] = [];
   const genreBox = infoBox.find('.genxed, .genres, [class*="genre"]').first();
@@ -326,10 +354,14 @@ export async function scrapeAnimeDetail(animeId: string): Promise<AnimeDetail> {
     season,
     type,
     director,
+    producers,
     casts,
     genres,
     synopsis,
     rating,
+    postedBy,
+    releasedOn,
+    updatedOn,
     characters,
     episodes,
   };
