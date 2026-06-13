@@ -1,4 +1,4 @@
-export const BASE_URL = "https://anoboy.be";
+export const BASE_URL = process.env.BASE_URL;
 
 export const HEADERS = {
   "User-Agent":
