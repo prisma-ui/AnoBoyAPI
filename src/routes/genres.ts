@@ -1,8 +1,27 @@
 import { Router } from "express";
-import { fetchHtml, parseGenre } from "../lib/scraper";
+import { fetchHtml, parseGenre, parseGenreList } from "../lib/scraper";
 import { BASE_URL } from "../lib/config";
 
 const router = Router();
+
+/**
+ * @openapi
+ * /api/genres:
+ *   get:
+ *     summary: Get all available genres
+ *     responses:
+ *       200:
+ *         description: List of genres with name and slug
+ */
+router.get("/", async (_req, res) => {
+  try {
+    const html = await fetchHtml(`${BASE_URL}/anime/`);
+    const data = parseGenreList(html);
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 /**
  * @openapi
