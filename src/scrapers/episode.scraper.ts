@@ -6,7 +6,14 @@ import { EpisodeDetail, StreamingSource, Mirror, DownloadLink, EpisodeNav, Relat
 import { config } from '../config/env';
 
 export async function scrapeEpisodeDetail(episodeId: string): Promise<EpisodeDetail> {
-  const url = `${config.baseUrl}/?p=${episodeId}`;
+  // episodeId can be a numeric WordPress post ID or a slug
+  // If numeric → use /?p=ID (WordPress permalink)
+  // If slug → build full URL directly: /slug/
+  const isNumeric = /^\d+$/.test(episodeId);
+  const url = isNumeric
+    ? `${config.baseUrl}/?p=${episodeId}`
+    : `${config.baseUrl}/${episodeId}/`;
+
   const html = await fetchPage(url);
   const $ = cheerio.load(html);
   return parseEpisodePage($, html, episodeId);
