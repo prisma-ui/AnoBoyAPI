@@ -77,6 +77,8 @@ export interface AnimeDetail {
   synopsis: string;
   genres: string[];
   info: Record<string, string>;
+  rating: { value: number | null; count: number | null };
+  characters: { name: string; role: string; actor: string | null; actorUrl: string | null }[];
   firstEpisode: { title: string; url: string; slug: string } | null;
   latestEpisode: { title: string; url: string; slug: string } | null;
   episodes: EpisodeListItem[];
@@ -90,16 +92,17 @@ export function parseAnimeDetail(html: string): AnimeDetail {
   const altTitles = $(".alter").first().text().trim() || null;
   const thumbnail = $(".thumbook .thumb img").first().attr("src") || "";
   const trailer = $(".rt a.trailerbutton").attr("href") || null;
-  const synopsis = $(".bixbox.synp .entry-content")
-    .first()
-    .text()
-    .trim()
-    .replace(/\s+/g, " ");
+  const synopsis = $(".info-content .desc").first().text().trim().replace(/\s+/g, " ");
 
   const genres: string[] = [];
   $(".genxed a").each((_, el) => {
     genres.push($(el).text().trim());
   });
+
+  const rating = {
+    value: parseFloat($("meta[itemprop='ratingValue']").attr("content") || "") || null,
+    count: parseInt($("meta[itemprop='ratingCount']").attr("content") || "") || null,
+  };
 
   const info: Record<string, string> = {};
   $(".info-content .spe span").each((_, el) => {
@@ -144,6 +147,19 @@ export function parseAnimeDetail(html: string): AnimeDetail {
       recommendations.push(parseCard($, el));
     });
 
+  const characters: { name: string; role: string; actor: string | null; actorUrl: string | null }[] = [];
+  $(".cvitem").each((_, el) => {
+    const char = $(el).find(".cvchar");
+    const actor = $(el).find(".cvactor");
+    const actorLink = actor.find(".charname a");
+    characters.push({
+      name: char.find(".charname").text().trim(),
+      role: char.find(".charrole").text().trim(),
+      actor: actorLink.text().trim() || actor.find(".charname").text().trim() || null,
+      actorUrl: actorLink.attr("href") || null,
+    });
+  });
+
   return {
     title,
     altTitles,
@@ -152,6 +168,8 @@ export function parseAnimeDetail(html: string): AnimeDetail {
     synopsis,
     genres,
     info,
+    rating,
+    characters,
     firstEpisode,
     latestEpisode,
     episodes,
@@ -191,6 +209,7 @@ export interface EpisodeDetail {
   genres: string[];
   relatedEpisodes: RelatedEpisode[];
   recommendations: AnimeCard[];
+  rating: { value: number | null; count: number | null };
 }
 
 function extractIframeSrc(html: string): string | null {
@@ -253,6 +272,11 @@ export function parseEpisodeDetail(html: string): EpisodeDetail {
   const nextHref = $('.naveps .nvs a[rel="next"]').attr("href") || null;
   const allEpisodesUrl = $(".naveps .nvsc a").attr("href") || null;
 
+  const rating = {
+    value: parseFloat($("meta[itemprop='ratingValue']").attr("content") || "") || null,
+    count: parseInt($("meta[itemprop='ratingCount']").attr("content") || "") || null,
+  };
+
   const info: Record<string, string> = {};
   $(".single-info .info-content .spe span").each((_, el) => {
     const label = $(el).find("b").first().text().trim().replace(/:$/, "");
@@ -304,6 +328,7 @@ export function parseEpisodeDetail(html: string): EpisodeDetail {
     genres,
     relatedEpisodes,
     recommendations,
+    rating,
   };
 }
 
