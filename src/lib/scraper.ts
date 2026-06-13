@@ -74,11 +74,13 @@ export interface AnimeDetail {
   altTitles: string | null;
   thumbnail: string;
   trailer: string | null;
+  mindesc: string;
+  desc: string;
   synopsis: string;
   genres: string[];
   info: Record<string, string>;
   rating: { value: number | null; count: number | null };
-  characters: { name: string; role: string; actor: string | null; actorUrl: string | null }[];
+  characters: { name: string; role: string; image: string | null; actor: string | null; actorUrl: string | null; actorImage: string | null }[];
   firstEpisode: { title: string; url: string; slug: string } | null;
   latestEpisode: { title: string; url: string; slug: string } | null;
   episodes: EpisodeListItem[];
@@ -92,7 +94,9 @@ export function parseAnimeDetail(html: string): AnimeDetail {
   const altTitles = $(".alter").first().text().trim() || null;
   const thumbnail = $(".thumbook .thumb img").first().attr("src") || "";
   const trailer = $(".rt a.trailerbutton").attr("href") || null;
-  const synopsis = $(".info-content .desc").first().text().trim().replace(/\s+/g, " ");
+  const mindesc = $(".mindesc").first().text().trim().replace(/\s+/g, " ");
+  const desc = $(".info-content .desc").first().text().trim().replace(/\s+/g, " ");
+  const synopsis = $(".bixbox.synp .entry-content").first().text().trim().replace(/\s+/g, " ");
 
   const genres: string[] = [];
   $(".genxed a").each((_, el) => {
@@ -147,7 +151,7 @@ export function parseAnimeDetail(html: string): AnimeDetail {
       recommendations.push(parseCard($, el));
     });
 
-  const characters: { name: string; role: string; actor: string | null; actorUrl: string | null }[] = [];
+  const characters: { name: string; role: string; image: string | null; actor: string | null; actorUrl: string | null; actorImage: string | null }[] = [];
   $(".cvitem").each((_, el) => {
     const char = $(el).find(".cvchar");
     const actor = $(el).find(".cvactor");
@@ -155,8 +159,10 @@ export function parseAnimeDetail(html: string): AnimeDetail {
     characters.push({
       name: char.find(".charname").text().trim(),
       role: char.find(".charrole").text().trim(),
+      image: char.find(".cvcover img").attr("src") || null,
       actor: actorLink.text().trim() || actor.find(".charname").text().trim() || null,
       actorUrl: actorLink.attr("href") || null,
+      actorImage: actor.find(".cvcover img").attr("src") || null,
     });
   });
 
@@ -165,6 +171,8 @@ export function parseAnimeDetail(html: string): AnimeDetail {
     altTitles,
     thumbnail,
     trailer,
+    mindesc,
+    desc,
     synopsis,
     genres,
     info,
