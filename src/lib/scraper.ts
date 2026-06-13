@@ -336,3 +336,19 @@ export function parseHome(html: string): HomeResult {
 
   return { latest, nextPage, recommendations };
 }
+
+export interface GenreItem {
+  name: string;
+  slug: string;
+}
+
+export function parseGenreList(html: string): GenreItem[] {
+  const $ = cheerio.load(html);
+  const genres: GenreItem[] = [];
+  $("input[name='genre[]']").each((_, el) => {
+    const slug = $(el).val() as string;
+    const name = $(el).next("label").text().trim();
+    if (slug && name) genres.push({ name, slug });
+  });
+  return genres;
+}
