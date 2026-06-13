@@ -1,4 +1,10 @@
 import swaggerJsdoc from "swagger-jsdoc";
+import path from "path";
+
+const isDist = __dirname.includes("dist");
+const routesGlob = isDist
+  ? path.join(__dirname, "../routes/*.js")
+  : path.join(__dirname, "../routes/*.ts");
 
 export const swaggerSpec = swaggerJsdoc({
   definition: {
@@ -10,5 +16,5 @@ export const swaggerSpec = swaggerJsdoc({
     },
     servers: [{ url: "/" }],
   },
-  apis: ["./src/routes/*.ts"],
+  apis: [routesGlob],
 });
