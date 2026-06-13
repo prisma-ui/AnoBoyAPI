@@ -38,10 +38,14 @@ export interface AnimeDetail {
   season: string;
   type: string;
   director: string;
+  producers: string[];
   casts: string[];
   genres: string[];
   synopsis: string;
   rating: string;
+  postedBy: string;
+  releasedOn: string;
+  updatedOn: string;
   characters: CharacterVoice[];
   episodes: Episode[];
 }
