@@ -9,12 +9,14 @@ import azlistRouter from "./routes/azlist";
 import animeDetailRouter from "./routes/animeDetail";
 import episodeRouter from "./routes/episode";
 import homeRouter from "./routes/home";
+import filterRouter from "./routes/filter";
 
 const app = express();
 
 app.use(cors());
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/home", homeRouter);
+app.use("/api/filter", filterRouter);
 app.use("/api/anime", animeRouter);
 app.use("/api/genres", genresRouter);
 app.use("/api/search", searchRouter);
