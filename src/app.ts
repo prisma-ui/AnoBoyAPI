@@ -1,83 +1,29 @@
-import express, { Request, Response } from 'express';
-import helmet from 'helmet';
-import cors from 'cors';
-import compression from 'compression';
-import morgan from 'morgan';
-import swaggerUi from 'swagger-ui-express';
-import { config } from './config/env';
-import { apiRoutes } from './routes';
-import { rateLimiter } from './middlewares/rateLimiter';
-import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
-import { swaggerSpec } from './docs/swagger';
-import { logger } from './utils/logger';
+import express from "express";
+import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./lib/swagger";
+import animeRouter from "./routes/anime";
+import genresRouter from "./routes/genres";
+import searchRouter from "./routes/search";
+import azlistRouter from "./routes/azlist";
+import animeDetailRouter from "./routes/animeDetail";
+import episodeRouter from "./routes/episode";
+import homeRouter from "./routes/home";
 
 const app = express();
 
-// Security
-app.use(
-  helmet({
-    contentSecurityPolicy: false, // Required for Swagger UI to load inline scripts
-  })
-);
-app.use(
-  cors({
-    origin: config.cors.allowedOrigins === '*' ? '*' : config.cors.allowedOrigins.split(','),
-    methods: ['GET', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+app.use(cors());
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api/home", homeRouter);
+app.use("/api/anime", animeRouter);
+app.use("/api/genres", genresRouter);
+app.use("/api/search", searchRouter);
+app.use("/api/az-list", azlistRouter);
+app.use("/api/anime", animeDetailRouter);
+app.use("/api/episode", episodeRouter);
 
-// Compression & parsing
-app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Logging
-if (config.nodeEnv !== 'test') {
-  app.use(
-    morgan('combined', {
-      stream: { write: (msg) => logger.info(msg.trim()) },
-    })
-  );
-}
-
-// Health check — no rate limit, no /api prefix
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok' });
+app.get("/", (_req, res) => {
+  res.json({ success: true, message: "Anoboy API running", docs: "/docs" });
 });
 
-// Serve raw OpenAPI spec as JSON
-app.get('/swagger.json', (_req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
-
-// Swagger UI — point to /swagger.json so spec is always fetched fresh
-app.use(
-  '/swagger',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: 'Anoboy API',
-    customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .info { margin: 20px 0 }
-    `,
-    swaggerOptions: {
-      url: '/swagger.json',
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      docExpansion: 'list',
-      filter: true,
-      showExtensions: true,
-    },
-  })
-);
-
-// API routes (rate limited)
-app.use('/api', rateLimiter, apiRoutes);
-
-// 404 & error handlers
-app.use(notFoundHandler);
-app.use(errorHandler);
-
-export { app };
+export default app;
